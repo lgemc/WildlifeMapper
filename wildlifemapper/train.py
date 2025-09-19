@@ -50,9 +50,9 @@ parser.add_argument(
     default="data/npy/CT_Abd",
     help="path to training npy files; two subfolders: gts and imgs",
 )
-parser.add_argument("--task_name", type=str, default="MedSAM-ViT-L")
-parser.add_argument("--model_type", type=str, default="vit_l")
-parser.add_argument("--checkpoint", type=str, default="./exp/checkpoint/sam_vit_l_0b3195.pth")
+parser.add_argument("--task_name", type=str, default="MedSAM-ViT-B")
+parser.add_argument("--model_type", type=str, default="vit_b")
+parser.add_argument("--checkpoint", type=str, default="./exp/checkpoint/sam_vit_b_01ec64.pth")
 parser.add_argument("--pretrain_model_path", type=str, default="")
 parser.add_argument("--work_dir", type=str, default="./exp/box_model")
 parser.add_argument("--trained_model", type=str, default="./exp/box_model")
