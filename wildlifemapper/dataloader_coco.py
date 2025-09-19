@@ -24,7 +24,7 @@ class CocoDetection(torchvision.datasets.CocoDetection):
     def __init__(self, img_folder, ann_file, image_set, transforms, return_masks):
         super(CocoDetection, self).__init__(img_folder, ann_file)
         self.indices = range(self.__len__())
-        self.img_size = 1024
+        self.img_size = 768
         self._transforms = transforms
         self.prepare = ConvertCocoPolysToMask(return_masks)
         self.mosaic = image_set
@@ -49,13 +49,13 @@ class CocoDetection(torchvision.datasets.CocoDetection):
     
     def fliplr_test(self, img, target):
         import pdb; pdb.set_trace()
-        img = np.transpose(np.array(img), (1,2,0))*1024
+        img = np.transpose(np.array(img), (1,2,0))*768
         img-=img.min()
         img/=img.max()
         image = img*255
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         bboxes = np.array(target['boxes'])
-        bboxes = bboxes*1024
+        bboxes = bboxes*768
         print(image.shape, bboxes.shape)
         # show the example
         _, axs = plt.subplots(1, figsize=(50, 50))
@@ -276,7 +276,7 @@ def make_coco_transforms(image_set):
 
     if image_set == 'train':
         normalize = T.Compose([
-            T.RandomResize([1024], max_size=1024),
+            T.RandomResize([768], max_size=768),
             T.ToTensor(),
             T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
             T.FlipLR(fliplr=0.5)
@@ -285,7 +285,7 @@ def make_coco_transforms(image_set):
 
     if image_set == 'val':
         normalize = T.Compose([
-            T.RandomResize([1024], max_size=1024),
+            T.RandomResize([768], max_size=768),
             T.ToTensor(),
             T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
