@@ -245,7 +245,7 @@ def main():
             start_epoch = checkpoint["epoch"] + 1
             # bowen
             # medsam_model.load_state_dict(checkpoint["model"])
-            model_without_ddp.load_state_dict(checkpoint['model'])
+            model_without_ddp.load_state_dict(checkpoint['model'], strict=False)
             # optimizer.load_state_dict(checkpoint["optimizer"])
     if args.use_amp:
         scaler = torch.cuda.amp.GradScaler()

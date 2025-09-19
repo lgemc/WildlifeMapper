@@ -112,7 +112,7 @@ model.eval()
 if os.path.isfile(args.pretrain_model_path):
     ## Map model to be loaded to specified single GPU
     checkpoint = torch.load(args.pretrain_model_path, map_location=device)
-    model.load_state_dict(checkpoint["model"])
+    model.load_state_dict(checkpoint["model"], strict=False)
 
 
 def plot_points(image, labels, boxes, image_id):
