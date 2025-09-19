@@ -80,7 +80,7 @@ class ImageEncoderViT(nn.Module):
             d_model = embed_dim,
             nhead = 8,
             dropout = 0.1,
-            dim_feedforward = embed_dim,
+            dim_feedforward = 1024,
             activation = 'relu',
             proj_dim = 1024
         )
@@ -474,15 +474,21 @@ class CrossAttentionHfcPatch(nn.Module):
         self.norm1 = nn.LayerNorm(proj_dim)
         self.norm2 = nn.LayerNorm(dim_feedforward)
 
+        # Project back to original embedding dimension (768)
+        self.embed_dim = d_model  # Store the target embedding dimension
+        self.proj_back = nn.Conv2d(dim_feedforward, d_model, (1,1))
+
         #position embedding
         self.pos_embed = nn.Parameter(torch.zeros(1, proj_dim, 64, 64))
     
     def forward(
-            self, 
-            hfc_embed, 
-            patch_embed, 
+            self,
+            hfc_embed,
+            patch_embed,
     ):
         b, h, w, c = hfc_embed.shape
+        original_c = patch_embed.shape[-1]  # Store original embedding dimension (768)
+
         hfc_embed = self.proj_hfc(hfc_embed.permute(0,3,1,2)) + self.pos_embed
         patch_embed = self.proj_patch(patch_embed.permute(0,3,1,2))
         #flatten NxCxHxW to HWxNxC
@@ -490,7 +496,7 @@ class CrossAttentionHfcPatch(nn.Module):
         patch_embed = patch_embed.flatten(2).permute(2,0,1)
 
         src2 = self.cross_attn(
-            query = patch_embed, 
+            query = patch_embed,
             key = hfc_embed,
             value = hfc_embed)[0]
         patch_embed = patch_embed + self.dropout1(src2)
@@ -500,7 +506,10 @@ class CrossAttentionHfcPatch(nn.Module):
         src2 = src2 + self.dropout3(patch_embed)
         patch_embed = self.norm2(src2)
 
-        patch_embed = patch_embed.permute(1, 0, 2).view(b, h, w, c)
+        # Project back to original embedding dimension
+        patch_embed = patch_embed.permute(1, 0, 2).view(b, -1, h, w)  # b, dim_feedforward, h, w
+        patch_embed = self.proj_back(patch_embed)  # b, original_c, h, w
+        patch_embed = patch_embed.permute(0, 2, 3, 1)  # b, h, w, original_c
 
         return patch_embed
 
