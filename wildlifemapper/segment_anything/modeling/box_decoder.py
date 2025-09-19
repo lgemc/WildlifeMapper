@@ -47,7 +47,7 @@ class MaskDecoder(nn.Module):
         self.transformer = transformer
         self.num_multimask_outputs = num_multimask_outputs
         self.aux_loss = aux_loss
-        self.num_classes = 8 + 1 #id 9 is reserved for background and id "0" is not used, total 10
+        self.num_classes = 6 + 1 #id 7 is reserved for background and id "0" is not used, total 8
 
         self.iou_token = nn.Embedding(1, transformer_dim)
         self.num_mask_tokens = num_multimask_outputs + 1
@@ -63,7 +63,7 @@ class MaskDecoder(nn.Module):
         #     proj_dim = 256
         # )
 
-        #id 9 is reserved for background and id "0" is not used, total 10
+        #id 7 is reserved for background and id "0" is not used, total 8
         # self.class_embed = nn.Linear(256, self.num_classes + 1)
         self.class_embed = MLP(transformer_dim, iou_head_hidden_dim, self.num_classes + 1, 3)
         self.bbox_embed = MLP(transformer_dim, iou_head_hidden_dim, 4, 3)

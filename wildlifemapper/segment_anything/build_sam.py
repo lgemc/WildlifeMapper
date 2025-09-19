@@ -251,8 +251,8 @@ def _build_sam(
     image_size = 1024
     vit_patch_size = 16
     image_embedding_size = image_size // vit_patch_size
-    #8 number of classes in the mara dataset in range 1-8, "0" not used, (max_id=8) + 1
-    num_classes = 8 + 1
+    #6 number of classes in the dataset in range 1-6, "0" not used, (max_id=6) + 1
+    num_classes = 6 + 1
     sam = Sam(
         image_encoder=ImageEncoderViT(
             depth=encoder_depth,
