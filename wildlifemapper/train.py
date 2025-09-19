@@ -25,8 +25,9 @@ from datetime import datetime
 import segment_anything.utils.misc as utils
 from segment_anything.network import MedSAM
 from inference import evaluate, get_coco_api_from_dataset
+from wandb_logger import setup_wandb_logger
 
-#bowen 
+#bowen
 import train_utils
 # set seeds
 torch.manual_seed(2023)
@@ -98,7 +99,9 @@ parser.add_argument('--eval', action='store_true')
 parser.add_argument("--weight_decay", type=float, default=0.001, help="weight decay (default: 0.01)")
 parser.add_argument("--lr", type=float, default=0.0001, metavar="LR", help="learning rate (absolute lr)")
 parser.add_argument('--lr_drop', default=40, type=int)
-parser.add_argument("--use_wandb", type=bool, default=False, help="use wandb to monitor training")
+parser.add_argument("--use_wandb", action="store_true", default=False, help="use wandb to monitor training")
+parser.add_argument("--wandb_project", type=str, default="wildlifemapper", help="wandb project name")
+parser.add_argument("--wandb_run_name", type=str, default=None, help="wandb run name")
 parser.add_argument("--use_amp", action="store_true", default=False, help="use amp")
 parser.add_argument("--resume", type=str, default="", help="Resuming training from checkpoint")
 
@@ -111,8 +114,11 @@ parser.add_argument('--dist_url', default='env://', help='url used to set up dis
 
 args = parser.parse_args()
 
-# bowen need to put it here since code starts before main function. 
+# bowen need to put it here since code starts before main function.
 train_utils.init_distributed_mode(args)
+
+# Setup wandb logger
+wandb_logger = setup_wandb_logger(args)
 
 #bbox coordinates are provided as XYXY : left top right bottom 
 def show_box(box, ax):
@@ -166,21 +172,7 @@ data_loader_val = DataLoader(dataset_val, args.batch_size, sampler=sampler_val,
 #for evaluation, coco_api
 base_ds = get_coco_api_from_dataset(dataset_val)
 
-# bowen
-if args.use_wandb and train_utils.is_main_process():
-    import wandb
-
-    wandb.login()
-    wandb.init(
-        project="aerial_detection_project",
-        name='no_prompt',
-        config={
-            "lr": args.lr,
-            "batch_size": args.batch_size,
-            "data_path": args.tr_npy_path,
-            "model_type": args.model_type,
-        },
-    )
+# wandb logger is already initialized
 
 # %% set up model for training
 device = args.device
@@ -203,6 +195,10 @@ def main():
         mask_decoder=sam_model.mask_decoder, #50 objects per image
         prompt_encoder=sam_model.prompt_encoder,
     ).to(device)
+
+    # Log model to wandb
+    if train_utils.is_main_process():
+        wandb_logger.log_model_graph(medsam_model)
 
     # bowen
     model_without_ddp = medsam_model
@@ -301,9 +297,19 @@ def main():
             metric_logger.update(loss=loss_value, **loss_dict_reduced_scaled, **loss_dict_reduced_unscaled)
             metric_logger.update(class_error=loss_dict_reduced['class_error'])
             metric_logger.update(lr=optimizer.param_groups[0]["lr"])
-            
+
             epoch_loss += losses.item()
             iter_num += 1
+
+            # Log batch metrics to wandb periodically
+            if train_utils.is_main_process() and iter_num % (print_freq * 5) == 0:
+                batch_metrics = {
+                    'batch/loss': loss_value,
+                    'batch/learning_rate': optimizer.param_groups[0]["lr"],
+                    'batch/class_error': loss_dict_reduced['class_error'],
+                }
+                batch_metrics.update({f'batch/{k}': v for k, v in loss_dict_reduced_scaled.items()})
+                wandb_logger.log_metrics(batch_metrics, step=iter_num)
 
         # gather the stats from all processes
         metric_logger.synchronize_between_processes()
@@ -323,9 +329,14 @@ def main():
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
                      **{f'test_{k}': v for k, v in test_stats.items()},
                        'epoch': epoch}
-        # bowen
-        if args.use_wandb and train_utils.is_main_process():
-            wandb.log(log_stats)
+        # Log to wandb
+        if train_utils.is_main_process():
+            wandb_logger.log_training_metrics(
+                train_stats=train_stats,
+                test_stats=test_stats,
+                epoch=epoch,
+                lr=optimizer.param_groups[0]["lr"]
+            )
         print(
             f'Time: {datetime.now().strftime("%Y%m%d-%H%M")}, Epoch: {epoch}'
         )
@@ -356,5 +367,14 @@ def main():
             # torch.save(checkpoint, best_checkpoint_path)
             train_utils.save_on_master(checkpoint, best_checkpoint_path)
 
+            # Save best model to wandb
+            if train_utils.is_main_process():
+                wandb_logger.save_model(best_checkpoint_path, aliases=['best'])
+
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        # Ensure wandb is properly closed
+        if train_utils.is_main_process():
+            wandb_logger.finish()

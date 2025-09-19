@@ -211,6 +211,10 @@ class SetCriterion(nn.Module):
 
 class PostProcess(nn.Module):
     """ This module converts the model's output into the format expected by the coco api"""
+    def __init__(self, confidence_threshold=0.05):
+        super().__init__()
+        self.confidence_threshold = confidence_threshold
+
     @torch.no_grad()
     def forward(self, outputs, target_sizes):
         """ Perform the computation
@@ -228,14 +232,28 @@ class PostProcess(nn.Module):
         prob = F.softmax(out_logits, -1)
         scores, labels = prob[..., :-1].max(-1)
 
-        # convert to [x0, y0, x1, y1] format
-        boxes = box_ops.box_cxcywh_to_xyxy(out_bbox)
-        # and from relative [0, 1] to absolute [0, height] coordinates
-        img_h, img_w = target_sizes.unbind(1)
-        scale_fct = torch.stack([img_w, img_h, img_w, img_h], dim=1)
-        boxes = boxes * scale_fct[:, None, :]
+        # Apply confidence threshold filtering
+        results = []
+        for s, l, b, target_size in zip(scores, labels, out_bbox, target_sizes):
+            # Filter by confidence threshold
+            keep = s > self.confidence_threshold
+            if keep.sum() == 0:
+                # If no detections above threshold, return empty results
+                results.append({'scores': torch.tensor([]), 'labels': torch.tensor([]), 'boxes': torch.tensor([]).reshape(0, 4)})
+                continue
 
-        results = [{'scores': s, 'labels': l, 'boxes': b} for s, l, b in zip(scores, labels, boxes)]
+            scores_keep = s[keep]
+            labels_keep = l[keep]
+            boxes_keep = b[keep]
+
+            # convert to [x0, y0, x1, y1] format
+            boxes_keep = box_ops.box_cxcywh_to_xyxy(boxes_keep)
+            # and from relative [0, 1] to absolute [0, height] coordinates
+            img_h, img_w = target_size[1], target_size[0]
+            scale_fct = torch.tensor([img_w, img_h, img_w, img_h], device=boxes_keep.device)
+            boxes_keep = boxes_keep * scale_fct
+
+            results.append({'scores': scores_keep, 'labels': labels_keep, 'boxes': boxes_keep})
 
         return results
 
@@ -312,5 +330,5 @@ def _build_sam(
     criterion = SetCriterion(num_classes, matcher=matcher, weight_dict=weight_dict,
                              eos_coef=args.eos_coef, losses=losses)
     criterion.to(args.device)
-    postprocessors = {'bbox': PostProcess()}
+    postprocessors = {'bbox': PostProcess(confidence_threshold=0.05)}
     return sam, criterion, postprocessors
