@@ -78,6 +78,7 @@ class ImageEncoderViT(nn.Module):
 
         self.hfc_attn = CrossAttentionHfcPatch(
             d_model = embed_dim,
+            hfc_dim = 1024,
             nhead = 8,
             dropout = 0.1,
             dim_feedforward = 1024,
@@ -455,6 +456,7 @@ class CrossAttentionHfcPatch(nn.Module):
     def __init__(
             self,
             d_model = 1024,
+            hfc_dim = 1024,
             nhead = 8,
             dropout = 0.1,
             dim_feedforward = 1024,
@@ -463,7 +465,7 @@ class CrossAttentionHfcPatch(nn.Module):
     ):
         super().__init__()
         self.activation = F.relu
-        self.proj_hfc = nn.Conv2d(d_model, proj_dim, (1,1))
+        self.proj_hfc = nn.Conv2d(hfc_dim, proj_dim, (1,1))
         self.proj_patch = nn.Conv2d(d_model, proj_dim, (1,1))
         self.cross_attn = nn.MultiheadAttention(proj_dim, nhead, dropout=dropout)
         self.linear1 = nn.Linear(proj_dim, dim_feedforward)
