@@ -276,14 +276,16 @@ def make_coco_transforms(image_set):
 
     if image_set == 'train':
         normalize = T.Compose([
+            T.RandomResize([1024], max_size=1024),
             T.ToTensor(),
             T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
             T.FlipLR(fliplr=0.5)
         ])
         return normalize
-    
+
     if image_set == 'val':
         normalize = T.Compose([
+            T.RandomResize([1024], max_size=1024),
             T.ToTensor(),
             T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
@@ -322,9 +324,8 @@ def build_dataset(image_set, args):
     assert root.exists(), f'provided COCO path {root} does not exist'
     mode = 'instances'
     PATHS = {
-        # "train": (root / "train2017", root / "annotations" / "instances_train2017.json"),
-        "train": (root / "val2017", root / "annotations" / "instances_val2017.json"),
-        "val": (root / "val2017", root / "annotations" / "instances_val2017.json"),
+        "train": (Path("../HerdNet/data/train"), root / "train.json"),
+        "val": (Path("../HerdNet/data/val"), root / "val.json"),
     }
 
     img_folder, ann_file = PATHS[image_set]
