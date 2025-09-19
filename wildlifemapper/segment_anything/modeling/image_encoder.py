@@ -509,7 +509,7 @@ class CrossAttentionHfcPatch(nn.Module):
         patch_embed = self.norm2(src2)
 
         # Project back to original embedding dimension
-        patch_embed = patch_embed.permute(1, 0, 2).view(b, -1, h, w)  # b, dim_feedforward, h, w
+        patch_embed = patch_embed.permute(1, 0, 2).reshape(b, -1, h, w)  # b, dim_feedforward, h, w
         patch_embed = self.proj_back(patch_embed)  # b, original_c, h, w
         patch_embed = patch_embed.permute(0, 2, 3, 1)  # b, h, w, original_c
 
