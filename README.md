@@ -92,3 +92,7 @@ WildlifeMapper is released under the UCSB license. Please see the [LICENSE](./LI
 ## Contributors
 
 The WildlifeMapper project was made possible with the help of many contributors for all over the world: Satish Kumar, Bowen Zhang, Chandrakanth Gudavalli, Connor Levenson, Lacey Hughey, Jared A. Stabach, Irene Amoke, Gordon Ojwang’, Joseph Mukeka, Stephen Mwiu, Joseph Ogutu, Howard Frederick, B.S. Manjunath
+
+# Troubleshooting
+
+Images contains EXT metadata rotations, this can affect the bounding box coordinates. 
