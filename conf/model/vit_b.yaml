@@ -1,0 +1,11 @@
+# @package _global_
+name: "ViT-B"
+model_type: "vit_b"
+checkpoint: "./exp/checkpoint/sam_vit_b_01ec64.pth"
+pretrain_model_path: ""
+
+# Model-specific architecture parameters
+encoder_embed_dim: 768
+encoder_depth: 12
+encoder_num_heads: 12
+encoder_global_attn_indexes: [2, 5, 8, 11]

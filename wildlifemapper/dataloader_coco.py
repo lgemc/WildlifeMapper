@@ -320,14 +320,23 @@ def make_coco_transforms(image_set):
 def build_dataset(image_set, args):
     root = Path(args.coco_path)
     assert root.exists(), f'provided COCO path {root} does not exist'
-    mode = 'instances'
-    PATHS = {
-        # "train": (root / "train2017", root / "annotations" / "instances_train2017.json"),
-        "train": (root / "val2017", root / "annotations" / "instances_val2017.json"),
-        "val": (root / "val2017", root / "annotations" / "instances_val2017.json"),
-    }
 
-    img_folder, ann_file = PATHS[image_set]
+    # Get annotation file from config
+    if image_set == 'train':
+        annotation_file = getattr(args, 'train_annotation_file', 'annotations/instances_train2017.json')
+        img_folder = root / getattr(args, 'train_image_folder', 'train2017')
+    elif image_set == 'val':
+        annotation_file = getattr(args, 'val_annotation_file', 'annotations/instances_val2017.json')
+        img_folder = root / getattr(args, 'val_image_folder', 'val2017')
+    else:
+        raise ValueError(f"Unknown image_set: {image_set}")
+
+    ann_file = root / annotation_file
+
+    # Check if annotation file exists
+    if not ann_file.exists():
+        raise FileNotFoundError(f"Annotation file not found: {ann_file}")
+
     #dataset = CocoDetection(img_folder, ann_file, transforms=make_coco_transforms(image_set), return_masks=args.masks)
     dataset = CocoDetection(img_folder, ann_file, image_set, transforms=make_coco_transforms(image_set), return_masks=False)
     return dataset

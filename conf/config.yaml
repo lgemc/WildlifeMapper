@@ -1,0 +1,19 @@
+defaults:
+  - model: vit_l
+  - training: default
+  - dataset: default
+  - _self_
+
+# Main configuration
+task_name: "MedSAM-${name}"
+work_dir: "./exp/box_model"
+output_dir: ""
+device: "cuda"
+seed: 42
+use_wandb: false
+use_amp: false
+resume: ""
+distributed: false
+
+# Image processing configuration (shared across all models)
+img_size: 1024

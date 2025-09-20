@@ -1,0 +1,13 @@
+# @package _global_
+# Dataset configuration
+dataset_file: "coco"
+tr_npy_path: "data/npy/CT_Abd"
+coco_path: "data"
+train_annotation_file: "annotations/instances_train2017.json"
+val_annotation_file: "annotations/instances_val2017.json"
+train_image_folder: "train2017"
+val_image_folder: "val2017"
+remove_difficult: false
+
+# Image processing configuration
+img_size: 1024

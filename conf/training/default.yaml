@@ -1,0 +1,30 @@
+# @package _global_
+# Training configuration
+num_epochs: 550
+batch_size: 6
+num_workers: 8
+
+# Optimizer
+lr: 0.0001
+weight_decay: 0.001
+lr_drop: 40
+
+# Loss coefficients
+aux_loss: true
+clip_max_norm: 0.1
+
+# Matcher costs
+set_cost_class: 1
+set_cost_bbox: 5
+set_cost_giou: 2
+
+# Loss coefficients
+mask_loss_coef: 1
+dice_loss_coef: 1
+bbox_loss_coef: 5
+giou_loss_coef: 2
+eos_coef: 0.1
+
+# Evaluation
+eval: false
+start_epoch: 0
