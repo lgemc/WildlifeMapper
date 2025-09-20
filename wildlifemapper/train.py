@@ -15,11 +15,12 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, DistributedSampler
 
+import hydra
+from omegaconf import DictConfig, OmegaConf
 
 from dataloader_coco import build_dataset
 from segment_anything import sam_model_registry
 import torch.nn.functional as F
-import argparse
 import random
 from datetime import datetime
 import segment_anything.utils.misc as utils
