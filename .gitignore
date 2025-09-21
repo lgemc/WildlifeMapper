@@ -28,3 +28,7 @@ Thumbs.db
 # Ignore VSCode settings (if applicable)
 .vscode/
 
+/data
+
+# DVC
+.dvc/config
