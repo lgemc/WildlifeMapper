@@ -2,11 +2,11 @@
 # Dataset configuration
 dataset_file: "coco"
 tr_npy_path: "data/npy/CT_Abd"
-coco_path: "data"
-train_annotation_file: "annotations/instances_train2017.json"
-val_annotation_file: "annotations/instances_val2017.json"
-train_image_folder: "train2017"
-val_image_folder: "val2017"
+coco_path: "data/processed/coco_1024_2014"
+train_annotation_file: "train.json"
+val_annotation_file: "test.json"
+train_image_folder: "../../intermediate/patches_1024_1024/images/train"
+val_image_folder: "../../intermediate/patches_1024_1024/images/test"
 remove_difficult: false
 
 # Image processing configuration
