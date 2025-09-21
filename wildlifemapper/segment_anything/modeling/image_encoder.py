@@ -66,7 +66,7 @@ class ImageEncoderViT(nn.Module):
             kernel_size=(patch_size, patch_size),
             stride=(patch_size, patch_size),
             in_chans=1,
-            embed_dim=1024,
+            embed_dim=embed_dim,
         )
 
         self.pos_embed: Optional[nn.Parameter] = None
@@ -81,8 +81,7 @@ class ImageEncoderViT(nn.Module):
             nhead = 8,
             dropout = 0.1,
             dim_feedforward = embed_dim,
-            activation = 'relu',
-            proj_dim = 1024
+            activation = 'relu'
         )
 
         self.blocks = nn.ModuleList()
@@ -454,14 +453,21 @@ class CrossAttentionHfcPatch(nn.Module):
     """
     def __init__(
             self,
-            d_model = 1024,
+            d_model,
             nhead = 8,
             dropout = 0.1,
-            dim_feedforward = 1024,
+            dim_feedforward = None,
             activation = 'relu',
-            proj_dim = 1024
+            proj_dim = None
     ):
         super().__init__()
+
+        # Set defaults based on d_model if not provided
+        if dim_feedforward is None:
+            dim_feedforward = d_model
+        if proj_dim is None:
+            proj_dim = d_model
+
         self.activation = F.relu
         self.proj_hfc = nn.Conv2d(d_model, proj_dim, (1,1))
         self.proj_patch = nn.Conv2d(d_model, proj_dim, (1,1))
