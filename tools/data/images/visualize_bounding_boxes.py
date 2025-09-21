@@ -9,6 +9,9 @@ Usage:
     # CSV input with row selection
     python visualize_bounding_boxes.py --csv_path data/images/1024-1024/val/gt.csv --rows 1,2,5-10 --output_dir outputs/
 
+    # CSV input filtering by specific image name
+    python visualize_bounding_boxes.py --csv_path data/images/1024-1024/val/gt.csv --image_name L_07_05_16_DSC00604.JPG --output_dir outputs/
+
     # CSV input with all rows and image directory search
     python visualize_bounding_boxes.py --csv_path data/images/1024-1024/val/gt.csv --output_dir outputs/ --base_image_dir data/images/1024-1024/val/
 
@@ -17,11 +20,11 @@ Usage:
 """
 
 import argparse
-import cv2
 import numpy as np
 import os
 import pandas as pd
 from pathlib import Path
+from PIL import Image, ImageDraw, ImageFont
 
 
 def visualize_bounding_box(image_path, x_min, x_max, y_min, y_max, output_path=None, color=(0, 255, 0), thickness=2):
@@ -35,36 +38,63 @@ def visualize_bounding_box(image_path, x_min, x_max, y_min, y_max, output_path=N
         y_min (int): Top coordinate of bounding box
         y_max (int): Bottom coordinate of bounding box
         output_path (str, optional): Path to save the output image. If None, displays the image
-        color (tuple): BGR color for the bounding box (default: green)
+        color (tuple): RGB color for the bounding box (default: green)
         thickness (int): Line thickness for the bounding box (default: 2)
     """
     # Load the image without applying EXIF rotations
     if not os.path.exists(image_path):
         raise FileNotFoundError(f"Image not found: {image_path}")
 
-    image = cv2.imread(image_path, cv2.IMREAD_IGNORE_ORIENTATION)
-    if image is None:
-        raise ValueError(f"Could not load image: {image_path}")
+    # Open image and ignore EXIF rotation
+    image = Image.open(image_path)
+    image = image.convert('RGB')  # Ensure RGB mode
 
     # Validate coordinates
-    h, w = image.shape[:2]
+    w, h = image.size
     if not (0 <= x_min < x_max <= w and 0 <= y_min < y_max <= h):
         print(f"Warning: Bounding box coordinates may be outside image bounds")
         print(f"Image size: {w}x{h}, Box: ({x_min},{y_min}) to ({x_max},{y_max})")
 
+    # Create a drawing context
+    draw = ImageDraw.Draw(image)
+
+    # Convert BGR to RGB for PIL
+    pil_color = (color[2], color[1], color[0]) if len(color) == 3 else color
+
     # Draw the bounding box
-    cv2.rectangle(image, (int(x_min), int(y_min)), (int(x_max), int(y_max)), color, thickness)
+    for i in range(thickness):
+        draw.rectangle(
+            [(int(x_min) - i, int(y_min) - i), (int(x_max) + i, int(y_max) + i)],
+            outline=pil_color,
+            width=1
+        )
 
     # Add coordinate text
     text = f"({x_min},{y_min})-({x_max},{y_max})"
-    text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)[0]
+    try:
+        font = ImageFont.load_default()
+    except:
+        font = None
+
+    # Get text size
+    if font:
+        bbox = draw.textbbox((0, 0), text, font=font)
+        text_w = bbox[2] - bbox[0]
+        text_h = bbox[3] - bbox[1]
+    else:
+        text_w, text_h = len(text) * 6, 11  # Rough estimate
+
     text_x = max(0, x_min)
-    text_y = max(text_size[1] + 5, y_min - 5)
+    text_y = max(0, y_min - text_h - 5)
 
     # Add background rectangle for text
-    cv2.rectangle(image, (text_x, text_y - text_size[1] - 2),
-                  (text_x + text_size[0], text_y + 2), color, -1)
-    cv2.putText(image, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    draw.rectangle(
+        [(text_x, text_y), (text_x + text_w + 4, text_y + text_h + 4)],
+        fill=pil_color
+    )
+
+    # Add text
+    draw.text((text_x + 2, text_y + 2), text, fill=(255, 255, 255), font=font)
 
     if output_path:
         # Create output directory if it doesn't exist
@@ -72,14 +102,12 @@ def visualize_bounding_box(image_path, x_min, x_max, y_min, y_max, output_path=N
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
 
-        cv2.imwrite(output_path, image)
+        image.save(output_path, quality=95)
         print(f"Output saved to: {output_path}")
     else:
         # Display the image
-        cv2.imshow('Image with Bounding Box', image)
-        print("Press any key to close the window...")
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        image.show()
+        print("Image displayed")
 
 
 def parse_row_selection(rows_str):
@@ -199,23 +227,33 @@ def visualize_multiple_boxes(image_path, boxes_data, output_path, base_image_dir
             print(f"  Also searched in: {image_dirs}")
         return False
 
-    # Load the image without applying EXIF rotations
-    image = cv2.imread(full_image_path, cv2.IMREAD_IGNORE_ORIENTATION)
-    if image is None:
-        print(f"Warning: Could not load image: {full_image_path}")
+    # Load the image and ignore EXIF rotation
+    try:
+        image = Image.open(full_image_path)
+        image = image.convert('RGB')  # Ensure RGB mode
+    except Exception as e:
+        print(f"Warning: Could not load image: {full_image_path} - {e}")
         return False
 
-    # Color map for different labels
+    # Create a drawing context
+    draw = ImageDraw.Draw(image)
+
+    # Color map for different labels (RGB format)
     colors = [
         (0, 255, 0),    # Green
-        (255, 0, 0),    # Blue
-        (0, 0, 255),    # Red
-        (255, 255, 0),  # Cyan
+        (0, 0, 255),    # Blue
+        (255, 0, 0),    # Red
+        (0, 255, 255),  # Cyan
         (255, 0, 255),  # Magenta
-        (0, 255, 255),  # Yellow
+        (255, 255, 0),  # Yellow
         (128, 0, 128),  # Purple
         (255, 165, 0),  # Orange
     ]
+
+    try:
+        font = ImageFont.load_default()
+    except:
+        font = None
 
     # Draw all bounding boxes
     for i, box_data in enumerate(boxes_data):
@@ -226,24 +264,38 @@ def visualize_multiple_boxes(image_path, boxes_data, output_path, base_image_dir
             color_idx = i % len(colors)
         color = colors[color_idx]
 
-        # Draw the bounding box
-        cv2.rectangle(image,
-                      (int(box_data['x_min']), int(box_data['y_min'])),
-                      (int(box_data['x_max']), int(box_data['y_max'])),
-                      color, 2)
+        # Draw the bounding box with thickness of 2
+        for j in range(2):
+            draw.rectangle(
+                [(int(box_data['x_min']) - j, int(box_data['y_min']) - j),
+                 (int(box_data['x_max']) + j, int(box_data['y_max']) + j)],
+                outline=color,
+                width=1
+            )
 
         # Add label text if available
         if box_data['label'] is not None:
             label_text = f"Label: {box_data['label']}"
-            text_size = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)[0]
+
+            # Get text size
+            if font:
+                bbox = draw.textbbox((0, 0), label_text, font=font)
+                text_w = bbox[2] - bbox[0]
+                text_h = bbox[3] - bbox[1]
+            else:
+                text_w, text_h = len(label_text) * 6, 11
+
             text_x = max(0, box_data['x_min'])
-            text_y = max(text_size[1] + 5, box_data['y_min'] - 5)
+            text_y = max(0, box_data['y_min'] - text_h - 5)
 
             # Add background rectangle for text
-            cv2.rectangle(image, (text_x, text_y - text_size[1] - 2),
-                          (text_x + text_size[0], text_y + 2), color, -1)
-            cv2.putText(image, label_text, (text_x, text_y),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+            draw.rectangle(
+                [(text_x, text_y), (text_x + text_w + 4, text_y + text_h + 4)],
+                fill=color
+            )
+
+            # Add text
+            draw.text((text_x + 2, text_y + 2), label_text, fill=(255, 255, 255), font=font)
 
     # Create output directory if it doesn't exist
     output_dir = os.path.dirname(output_path)
@@ -251,11 +303,11 @@ def visualize_multiple_boxes(image_path, boxes_data, output_path, base_image_dir
         os.makedirs(output_dir, exist_ok=True)
 
     # Save the image
-    cv2.imwrite(output_path, image)
+    image.save(output_path, quality=95)
     return True
 
 
-def process_csv(csv_path, rows_selection, output_dir, base_image_dir=None, image_dirs=None):
+def process_csv(csv_path, rows_selection, output_dir, base_image_dir=None, image_dirs=None, image_name=None):
     """
     Process CSV file and generate visualization images.
 
@@ -265,13 +317,25 @@ def process_csv(csv_path, rows_selection, output_dir, base_image_dir=None, image
         output_dir (str): Output directory for generated images
         base_image_dir (str): Directory containing the base images
         image_dirs (list): Additional directories to search for images
+        image_name (str): Filter by specific image name
     """
     # Read CSV file
     df = pd.read_csv(csv_path)
     print(f"Loaded CSV with {len(df)} rows")
 
+    # Filter by image name if specified
+    if image_name:
+        # Handle different column name variations
+        image_col = 'images' if 'images' in df.columns else 'Image'
+        initial_count = len(df)
+        df = df[df[image_col] == image_name]
+        print(f"Filtered to {len(df)} rows matching image name '{image_name}'")
+        if len(df) == 0:
+            print(f"Warning: No rows found for image '{image_name}'")
+            return
+
     # Filter rows if specified
-    if rows_selection:
+    elif rows_selection:
         selected_indices = parse_row_selection(rows_selection)
         if selected_indices:
             # Validate indices
@@ -330,7 +394,7 @@ def main():
     single_group.add_argument('--output_path', type=str, default=None,
                              help='Path to save the output image (optional)')
     single_group.add_argument('--color', type=str, default='0,255,0',
-                             help='BGR color for bounding box as comma-separated values (default: 0,255,0 for green)')
+                             help='RGB color for bounding box as comma-separated values (default: 0,255,0 for green)')
     single_group.add_argument('--thickness', type=int, default=2,
                              help='Line thickness for bounding box (default: 2)')
 
@@ -359,7 +423,7 @@ def main():
         try:
             color = tuple(map(int, args.color.split(',')))
             if len(color) != 3:
-                raise ValueError("Color must have 3 values (BGR)")
+                raise ValueError("Color must have 3 values (RGB)")
         except ValueError as e:
             print(f"Error parsing color: {e}")
             print("Using default green color")
