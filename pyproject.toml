@@ -19,6 +19,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "dvc>=3.63.0",
+    "dvc-s3>=3.2.2",
     "matplotlib>=3.10.6",
     "pandas>=2.3.2",
     "tqdm>=4.67.1",
