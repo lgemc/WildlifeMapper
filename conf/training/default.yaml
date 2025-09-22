@@ -2,7 +2,7 @@
 # Training configuration
 num_epochs: 550
 batch_size: 6
-num_workers: 8
+num_workers: 32
 
 # Optimizer
 lr: 0.0001

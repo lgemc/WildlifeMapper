@@ -14,6 +14,7 @@ from .modeling import ImageEncoderViT, MaskDecoder, PromptEncoder, Sam, TwoWayTr
 from .modeling.matcher import build_matcher
 from .utils.misc import accuracy, get_world_size, is_dist_avail_and_initialized
 from .utils import box_ops
+from wildlifemapper.utils.focal_loss import FocalLoss
 
 
 def build_sam_vit_h(checkpoint=None, args=None):
@@ -65,7 +66,7 @@ class SetCriterion(nn.Module):
         1) we compute hungarian assignment between ground truth boxes and the outputs of the model
         2) we supervise each pair of matched ground-truth / prediction (supervise class and box)
     """
-    def __init__(self, num_classes, matcher, weight_dict, eos_coef, losses, class_weights=None):
+    def __init__(self, num_classes, matcher, weight_dict, eos_coef, losses, class_weights=None, focal_loss_alpha=None, focal_loss_gamma=2.0, use_focal_loss=False):
         """ Create the criterion.
         Parameters:
             num_classes: number of object categories, omitting the special no-object category
@@ -74,6 +75,9 @@ class SetCriterion(nn.Module):
             eos_coef: relative classification weight applied to the no-object category
             losses: list of all the losses to be applied. See get_loss for list of available losses.
             class_weights: list of weights for each class to handle class imbalance
+            focal_loss_alpha: alpha parameter for focal loss (class weights)
+            focal_loss_gamma: gamma parameter for focal loss (focusing parameter)
+            use_focal_loss: whether to use focal loss instead of cross entropy
         """
         super().__init__()
         self.num_classes = num_classes
@@ -98,6 +102,21 @@ class SetCriterion(nn.Module):
 
         self.register_buffer('empty_weight', empty_weight)
 
+        # Initialize focal loss if requested
+        self.use_focal_loss = use_focal_loss
+        if self.use_focal_loss:
+            # Convert class_weights to focal loss alpha if provided
+            if focal_loss_alpha is None and class_weights is not None:
+                focal_loss_alpha = torch.tensor(class_weights, dtype=torch.float)
+            elif focal_loss_alpha is not None:
+                focal_loss_alpha = torch.tensor(focal_loss_alpha, dtype=torch.float)
+
+            self.focal_loss = FocalLoss(
+                alpha=focal_loss_alpha,
+                gamma=focal_loss_gamma,
+                reduction='mean'
+            )
+
     """
     num_classes = max_id + 1 where max_id is the highest class ID,
     For example, if you have 4 classes with IDs 1, 23, 24, 56, then you will use num_classes=57.
@@ -105,7 +124,7 @@ class SetCriterion(nn.Module):
     it doesn't really matter if there are a few "holes"
     """
     def loss_labels(self, outputs, targets, indices, num_boxes, log=True):
-        """Classification loss (NLL)
+        """Classification loss (Cross Entropy or Focal Loss)
         targets dicts must contain the key "labels" containing a tensor of dim [nb_target_boxes]
         """
         assert 'pred_logits' in outputs
@@ -117,7 +136,14 @@ class SetCriterion(nn.Module):
                                     dtype=torch.int64, device=src_logits.device)
         target_classes[idx] = target_classes_o
 
-        loss_ce = F.cross_entropy(src_logits.transpose(1, 2), target_classes, self.empty_weight)
+        if self.use_focal_loss:
+            # Reshape for focal loss: (batch_size * num_queries, num_classes)
+            src_logits_flat = src_logits.view(-1, src_logits.shape[-1])
+            target_classes_flat = target_classes.view(-1)
+            loss_ce = self.focal_loss(src_logits_flat, target_classes_flat)
+        else:
+            loss_ce = F.cross_entropy(src_logits.transpose(1, 2), target_classes, self.empty_weight)
+
         losses = {'loss_ce': loss_ce}
 
         if log:
@@ -318,9 +344,18 @@ def _build_sam(
         #load the rest of the trained model weights
         sam.load_state_dict(state_dict, strict=False)
 
-    #setup hungarian matcher for box matching 
+    #setup hungarian matcher for box matching
     matcher = build_matcher(args)
-    weight_dict = {'loss_ce': 3, 'loss_bbox': args.bbox_loss_coef}
+
+    # Get focal loss parameters from args if provided
+    focal_loss_weight = getattr(args, 'focal_loss_weight', 0.0)
+    focal_loss_alpha = getattr(args, 'focal_loss_alpha', None)
+    focal_loss_gamma = getattr(args, 'focal_loss_gamma', 2.0)
+    use_focal_loss = focal_loss_weight > 0
+
+    # Use focal loss weight if provided, otherwise default classification weight
+    ce_weight = focal_loss_weight if use_focal_loss else 3
+    weight_dict = {'loss_ce': ce_weight, 'loss_bbox': args.bbox_loss_coef}
     weight_dict['loss_giou'] = args.giou_loss_coef
 
     losses = ['labels', 'boxes', 'cardinality']
@@ -329,7 +364,9 @@ def _build_sam(
     class_weights = getattr(args, 'class_weights', None)
 
     criterion = SetCriterion(num_classes, matcher=matcher, weight_dict=weight_dict,
-                             eos_coef=args.eos_coef, losses=losses, class_weights=class_weights)
+                             eos_coef=args.eos_coef, losses=losses, class_weights=class_weights,
+                             focal_loss_alpha=focal_loss_alpha, focal_loss_gamma=focal_loss_gamma,
+                             use_focal_loss=use_focal_loss)
     criterion.to(args.device)
     postprocessors = {'bbox': PostProcess()}
     return sam, criterion, postprocessors

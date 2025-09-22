@@ -113,7 +113,21 @@ def main(cfg: DictConfig) -> None:
     class Args:
         def __init__(self, cfg):
             for key, value in cfg.items():
-                setattr(self, key, value)
+                if key == 'loss' and isinstance(value, DictConfig):
+                    # Flatten loss configuration
+                    for loss_key, loss_value in value.items():
+                        setattr(self, loss_key, loss_value)
+                elif key == 'training' and isinstance(value, DictConfig):
+                    # Flatten training configuration if it exists
+                    for train_key, train_value in value.items():
+                        if train_key == 'loss' and isinstance(train_value, DictConfig):
+                            # Flatten nested training.loss configuration
+                            for loss_key, loss_value in train_value.items():
+                                setattr(self, loss_key, loss_value)
+                        else:
+                            setattr(self, train_key, train_value)
+                else:
+                    setattr(self, key, value)
 
     args = Args(cfg)
 
