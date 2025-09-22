@@ -149,11 +149,6 @@ class SetCriterion(nn.Module):
         if log:
             # TODO this should probably be a separate loss, not hacked in this one here
             acc_result = accuracy(src_logits[idx], target_classes_o)[0]
-            print(f"DEBUG: src_logits[idx] shape: {src_logits[idx].shape}")
-            print(f"DEBUG: target_classes_o shape: {target_classes_o.shape}")
-            print(f"DEBUG: target_classes_o unique values: {torch.unique(target_classes_o)}")
-            print(f"DEBUG: src_logits[idx] max values: {src_logits[idx].argmax(dim=-1)}")
-            print(f"DEBUG: accuracy result: {acc_result}")
             losses['class_error'] = 100 - acc_result
         return losses
 
