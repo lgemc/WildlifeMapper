@@ -18,16 +18,8 @@ import matplotlib.pyplot as plt
 
 import segment_anything.utils.augmentation as T
 from segment_anything.utils.augmentation_yolo import random_perspective
+from .data.enhanced_dataloader import create_enhanced_dataloader
 
-# Import enhanced augmentation system
-try:
-    from .data.transforms import WildlifeAugmentationPipeline
-    from .data.samplers import ClassAwareBatchSampler, WeightedClassSampler
-    from .data.enhanced_dataloader import create_enhanced_dataloader
-    ENHANCED_AUGMENTATION_AVAILABLE = True
-except ImportError:
-    ENHANCED_AUGMENTATION_AVAILABLE = False
-    print("Enhanced augmentation system not available. Using basic augmentations.") 
 
 
 class CocoDetection(torchvision.datasets.CocoDetection):
@@ -363,7 +355,7 @@ def build_enhanced_dataset(image_set, cfg=None):
     Returns:
         Enhanced dataset or dataloader
     """
-    if cfg is not None and ENHANCED_AUGMENTATION_AVAILABLE:
+    if cfg is not None:
         # Use enhanced dataloader with Hydra config
         try:
             return create_enhanced_dataloader(cfg, image_set)

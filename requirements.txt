@@ -6,3 +6,4 @@ tqdm
 hydra-core
 omegaconf
 wandb
+albumentations
