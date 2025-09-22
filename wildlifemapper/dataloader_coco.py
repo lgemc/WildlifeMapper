@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 
 import segment_anything.utils.augmentation as T
 from segment_anything.utils.augmentation_yolo import random_perspective
-from .data.enhanced_dataloader import create_enhanced_dataloader
+from wildlifemapper.data.enhanced_dataloader import create_enhanced_dataloader
 
 
 
