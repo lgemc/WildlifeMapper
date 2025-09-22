@@ -265,8 +265,8 @@ def _build_sam(
     image_size = 1024
     vit_patch_size = 16
     image_embedding_size = image_size // vit_patch_size
-    #8 number of classes in the mara dataset in range 1-8, "0" not used, (max_id=8) + 1
-    num_classes = 8 + 1
+    # Get num_classes from config, default to 6 if not provided
+    num_classes = getattr(args, 'num_classes', 6) if args else 6
     sam = Sam(
         image_encoder=ImageEncoderViT(
             depth=encoder_depth,
@@ -299,6 +299,7 @@ def _build_sam(
             transformer_dim=prompt_embed_dim,
             iou_head_depth=3,
             iou_head_hidden_dim=256,
+            num_classes=num_classes,
         ),
         pixel_mean=[123.675, 116.28, 103.53],
         pixel_std=[58.395, 57.12, 57.375],

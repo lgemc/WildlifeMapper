@@ -11,3 +11,6 @@ remove_difficult: false
 
 # Image processing configuration
 img_size: 1024
+
+# Number of classes (excluding background)
+num_classes: 6

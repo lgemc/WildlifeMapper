@@ -4,27 +4,24 @@
 
 # Class weights to handle class imbalance
 # Weights are calculated using inverse frequency: max_count / class_count
-# Index corresponds to: [background, shoats, cattle, impala, zebra, wildebeest, buffalo, topi, other]
-class_weights: [1.2,1.9,1.16,6.37,12.12,1.0,0.1]
+# Index corresponds to: [species_1, species_2, species_3, species_4, species_5, species_6, background]
+class_weights: [1.2, 1.9, 1.16, 6.37, 12.12, 1.0, 0.1]
 
 # Class definition mapping (for reference)
 class_names:
-  0: "background"    # Special no-object class
-  1: "topi"        # Class ID 1
-  2: "buffalo"        # Class ID 2
-  3: "kob"        # Class ID 3
-  4: "warthog"         # Class ID 4
-  5: "waterbuck"    # Class ID 5
-  6: "elephant"       # Class ID 6
-  # Class ID 9 is reserved for "no-object" background in the loss function
+  1: "species_1"     # Class ID 1
+  2: "species_2"     # Class ID 2
+  3: "species_3"     # Class ID 3
+  4: "species_4"     # Class ID 4
+  5: "species_5"     # Class ID 5
+  6: "species_6"     # Class ID 6
+  # Background class is handled automatically in the loss function
 
 # Weight rationale:
+# - species_1 (1.2): Lower weight for common species
+# - species_2 (1.9): Lower weight for more common species
+# - species_3 (1.16): Slightly above uniform for moderately common species
+# - species_4 (6.37): High weight due to lower frequency
+# - species_5 (12.12): Highest weight due to rarity in dataset
+# - species_6 (1.0): Uniform weight for balanced representation
 # - background (0.1): Low weight to reduce false positive background predictions
-# - wildebeest (12.12): Highest weight due to rarity in dataset
-# - zebra (6.37): High weight due to lower frequency
-# - other (3.0): Moderately high weight for miscellaneous species
-# - topi (2.5): Moderate weight
-# - cattle (1.9): Lower weight for more common species
-# - shoats (1.2): Lower weight for common species
-# - impala (1.16): Slightly above uniform for moderately common species
-# - buffalo (1.0): Uniform weight for balanced representation
