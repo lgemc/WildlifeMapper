@@ -17,7 +17,17 @@ import torchvision
 import matplotlib.pyplot as plt
 
 import segment_anything.utils.augmentation as T
-from segment_anything.utils.augmentation_yolo import random_perspective 
+from segment_anything.utils.augmentation_yolo import random_perspective
+
+# Import enhanced augmentation system
+try:
+    from .data.transforms import WildlifeAugmentationPipeline
+    from .data.samplers import ClassAwareBatchSampler, WeightedClassSampler
+    from .data.enhanced_dataloader import create_enhanced_dataloader
+    ENHANCED_AUGMENTATION_AVAILABLE = True
+except ImportError:
+    ENHANCED_AUGMENTATION_AVAILABLE = False
+    print("Enhanced augmentation system not available. Using basic augmentations.") 
 
 
 class CocoDetection(torchvision.datasets.CocoDetection):
@@ -340,3 +350,39 @@ def build_dataset(image_set, args):
     #dataset = CocoDetection(img_folder, ann_file, transforms=make_coco_transforms(image_set), return_masks=args.masks)
     dataset = CocoDetection(img_folder, ann_file, image_set, transforms=make_coco_transforms(image_set), return_masks=False)
     return dataset
+
+
+def build_enhanced_dataset(image_set, cfg=None):
+    """
+    Build dataset using enhanced augmentation system.
+
+    Args:
+        image_set: Dataset split ('train', 'val', 'test')
+        cfg: Hydra configuration object (optional)
+
+    Returns:
+        Enhanced dataset or dataloader
+    """
+    if cfg is not None and ENHANCED_AUGMENTATION_AVAILABLE:
+        # Use enhanced dataloader with Hydra config
+        try:
+            return create_enhanced_dataloader(cfg, image_set)
+        except Exception as e:
+            print(f"Failed to create enhanced dataloader: {e}")
+            print("Falling back to basic dataset.")
+
+    # Fallback to basic dataset - this needs to be adapted based on your specific requirements
+    # You'll need to provide args-like object with necessary paths
+    class SimpleArgs:
+        def __init__(self, data_path):
+            self.coco_path = data_path
+            self.train_annotation_file = 'annotations/instances_train.json'
+            self.val_annotation_file = 'annotations/instances_val.json'
+            self.train_image_folder = 'images/train'
+            self.val_image_folder = 'images/val'
+
+    # Default path - should be configured properly
+    default_path = Path("./data")
+    args = SimpleArgs(default_path)
+
+    return build_dataset(image_set, args)
