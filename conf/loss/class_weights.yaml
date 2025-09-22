@@ -4,18 +4,18 @@
 
 # Class weights to handle class imbalance
 # Weights are calculated using inverse frequency: max_count / class_count
-# Index corresponds to: [category_0, category_1, category_2, category_3, category_4, category_5, background]
-# COCO category_ids 0-5 map to model classes 0-5, background is class 6
-class_weights: [1.2, 1.9, 1.16, 6.37, 12.12, 1.0, 0.1]
+# Index corresponds to: [class_0, class_1, class_2, class_3, class_4, class_5, background]
+# COCO category_ids 1-6 get converted to model classes 0-5, background is class 6
+class_weights: [1.2, 1.9, 1.16, 6.37, 12.12, 1.0, 1.0]
 
 # Class definition mapping (for reference)
 class_names:
-  0: "species_1"     # COCO category_id 0
-  1: "species_2"     # COCO category_id 1
-  2: "species_3"     # COCO category_id 2
-  3: "species_4"     # COCO category_id 3
-  4: "species_5"     # COCO category_id 4
-  5: "species_6"     # COCO category_id 5
+  0: "species_1"     # Converted from COCO category_id 1
+  1: "species_2"     # Converted from COCO category_id 2
+  2: "species_3"     # Converted from COCO category_id 3
+  3: "species_4"     # Converted from COCO category_id 4
+  4: "species_5"     # Converted from COCO category_id 5
+  5: "species_6"     # Converted from COCO category_id 6
   # Background class 6 is handled automatically in the loss function
 
 # Weight rationale:
@@ -25,4 +25,4 @@ class_names:
 # - category_3/species_4 (6.37): High weight due to lower frequency
 # - category_4/species_5 (12.12): Highest weight due to rarity in dataset
 # - category_5/species_6 (1.0): Uniform weight for balanced representation
-# - background (0.1): Low weight to reduce false positive background predictions
+# - background (1.0): Balanced weight to prevent over-predicting background

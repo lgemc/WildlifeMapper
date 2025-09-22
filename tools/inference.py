@@ -68,8 +68,7 @@ class WildlifeInferenceRunner:
             4: "Zebra",
             5: "Wildebeest",
             6: "Buffalo",
-            7: "Topi",
-            8: "Other"
+            7: "Other"
         }
 
         # Color dictionary for visualization
@@ -80,8 +79,6 @@ class WildlifeInferenceRunner:
             4: (255, 255, 224), # Light Yellow - Zebra
             5: (199, 21, 133),  # Medium Violet Red - Wildebeest
             6: (72, 61, 139),   # Dark Slate Blue - Buffalo
-            7: (255, 69, 0),    # Red Orange - Topi
-            8: (218, 112, 214)  # Orchid - Other
         }
 
         self._load_model()
@@ -213,7 +210,8 @@ class WildlifeInferenceRunner:
         labels = result['labels'][keep]
 
         if len(boxes) > 0:
-            nms_indices = torchvision.ops.nms(boxes, scores, iou_threshold=0.4)
+            nms_iou_threshold = self.cfg.get('nms_iou_threshold', 0.4)
+            nms_indices = torchvision.ops.nms(boxes, scores, iou_threshold=nms_iou_threshold)
             boxes = boxes[nms_indices]
             scores = scores[nms_indices]
             labels = labels[nms_indices]
