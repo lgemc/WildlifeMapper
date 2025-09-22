@@ -65,7 +65,7 @@ class SetCriterion(nn.Module):
         1) we compute hungarian assignment between ground truth boxes and the outputs of the model
         2) we supervise each pair of matched ground-truth / prediction (supervise class and box)
     """
-    def __init__(self, num_classes, matcher, weight_dict, eos_coef, losses):
+    def __init__(self, num_classes, matcher, weight_dict, eos_coef, losses, class_weights=None):
         """ Create the criterion.
         Parameters:
             num_classes: number of object categories, omitting the special no-object category
@@ -73,6 +73,7 @@ class SetCriterion(nn.Module):
             weight_dict: dict containing as key the names of the losses and as values their relative weight.
             eos_coef: relative classification weight applied to the no-object category
             losses: list of all the losses to be applied. See get_loss for list of available losses.
+            class_weights: list of weights for each class to handle class imbalance
         """
         super().__init__()
         self.num_classes = num_classes
@@ -80,8 +81,21 @@ class SetCriterion(nn.Module):
         self.weight_dict = weight_dict
         self.eos_coef = eos_coef
         self.losses = losses
-        empty_weight = torch.ones(self.num_classes + 1)
-        empty_weight[-1] = self.eos_coef
+
+        # Initialize class weights for handling class imbalance
+        if class_weights is not None:
+            # Ensure we have weights for all classes including background
+            if len(class_weights) == num_classes + 1:
+                empty_weight = torch.tensor(class_weights, dtype=torch.float)
+            else:
+                # Default weights with custom eos_coef for background
+                empty_weight = torch.ones(self.num_classes + 1)
+                empty_weight[-1] = self.eos_coef
+        else:
+            # Original behavior - uniform weights with custom eos_coef for background
+            empty_weight = torch.ones(self.num_classes + 1)
+            empty_weight[-1] = self.eos_coef
+
         self.register_buffer('empty_weight', empty_weight)
 
     """
@@ -309,8 +323,12 @@ def _build_sam(
     weight_dict['loss_giou'] = args.giou_loss_coef
 
     losses = ['labels', 'boxes', 'cardinality']
+
+    # Get class weights from args if provided
+    class_weights = getattr(args, 'class_weights', None)
+
     criterion = SetCriterion(num_classes, matcher=matcher, weight_dict=weight_dict,
-                             eos_coef=args.eos_coef, losses=losses)
+                             eos_coef=args.eos_coef, losses=losses, class_weights=class_weights)
     criterion.to(args.device)
     postprocessors = {'bbox': PostProcess()}
     return sam, criterion, postprocessors

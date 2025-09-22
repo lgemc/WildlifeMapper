@@ -1,0 +1,6 @@
+defaults:
+  - inference: default
+  - _self_
+
+# Main inference configuration
+task_name: "WildlifeMapper-Inference"

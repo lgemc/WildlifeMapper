@@ -1,0 +1,23 @@
+# Default inference configuration
+defaults:
+  - /model: vit_l
+  - _self_
+
+# Input configuration
+image_path: null
+image_dir: null
+
+# Model configuration
+model_path: "exp/bbox_model/best_checkpoint.pth"
+threshold: 0.5
+
+# Output configuration
+output_dir: null
+visualize: true
+
+# Ground truth comparison
+gt_csv: null
+
+# Processing configuration
+device: "cuda"
+img_size: 1024

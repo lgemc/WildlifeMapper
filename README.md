@@ -103,3 +103,5 @@ Images contains EXT metadata rotations, this can affect the bounding box coordin
 python wildlifemapper/train_hydra.py model=vit_b batch_size=8 use_wandb=True
 
 CUDA_VISIBLE_DEVICES=0,1 torchrun --nproc_per_node=2  wildlifemapper/train_hydra.py model=vit_b batch_size=8 use_wandb=True --distributed=True
+
+uv run  tools/inference.py +image_dir=data/intermediate/patches_1024_1024/images/test/ +gt_csv=data/intermediate/patches_1024_1024/annotations/test.csv +output_dir=outputs/ +model.name=vit_b +device=cuda
