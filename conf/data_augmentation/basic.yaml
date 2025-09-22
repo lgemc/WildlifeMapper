@@ -1,0 +1,66 @@
+# Basic data augmentation configuration
+# Minimal augmentations for stable training
+
+augmentation:
+  pipeline_type: "basic"
+
+  # Image processing
+  image_size: [1024, 1024]
+
+  # Augmentation probabilities (conservative)
+  strong_aug_prob: 0.3
+  geometric_aug_prob: 0.5
+  photometric_aug_prob: 0.4
+  weather_aug_prob: 0.0  # Disabled for basic
+  aerial_specific_prob: 0.1
+
+  # Geometric augmentations
+  geometric:
+    horizontal_flip_prob: 0.5
+    vertical_flip_prob: 0.2
+    rotate90_prob: 0.3
+    rotation_limit: 10
+    affine_prob: 0.2
+    affine_params:
+      scale: [0.9, 1.1]
+      translate_percent: [-0.05, 0.05]
+      rotate: [-10, 10]
+      shear: [-2, 2]
+
+  # Photometric augmentations
+  photometric:
+    brightness_contrast_prob: 0.4
+    brightness_limit: 0.1
+    contrast_limit: 0.1
+    hue_saturation_prob: 0.3
+    hue_shift_limit: 5
+    sat_shift_limit: 10
+    val_shift_limit: 8
+
+  # Noise and blur
+  noise_blur:
+    gaussian_noise_prob: 0.2
+    noise_var_limit: [10.0, 30.0]
+    motion_blur_prob: 0.1
+    blur_limit: 3
+
+  # Copy-paste augmentation
+  copy_paste:
+    enabled: false
+    paste_prob: 0.0
+    max_paste_objects: 0
+
+  # Mosaic and mixup
+  advanced:
+    mosaic_prob: 0.0
+    mixup_prob: 0.0
+
+  # Sampling strategy
+  sampling:
+    strategy: "random"  # Options: random, weighted, class_aware, minority_oversampling
+    batch_size: 8
+
+# Normalization (ImageNet values)
+normalization:
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]

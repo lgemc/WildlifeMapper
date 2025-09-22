@@ -1,0 +1,91 @@
+defaults:
+  - data_augmentation: standard
+  - _self_
+
+# Main training configuration for WildlifeMapper
+task_name: "WildlifeMapper-Training"
+
+# Model configuration
+model:
+  name: "WildlifeMapper"
+  checkpoint_path: null
+  resume_training: false
+
+  # Model hyperparameters
+  backbone: "sam_vit_h"
+  input_size: [1024, 1024]
+  num_classes: 10  # Adjust based on your wildlife species
+
+# Dataset configuration
+dataset:
+  name: "CocoWildlife"
+  data_path: "/path/to/your/wildlife/data"
+  train_annotation_file: "annotations/instances_train.json"
+  val_annotation_file: "annotations/instances_val.json"
+  train_image_folder: "images/train"
+  val_image_folder: "images/val"
+
+  # Class definitions (update with your species)
+  class_names:
+    1: "elephant"
+    2: "lion"
+    3: "zebra"
+    4: "giraffe"
+    5: "buffalo"
+    6: "antelope"
+    7: "bird"
+    8: "other_mammal"
+    9: "vehicle"
+
+# Training settings
+training:
+  epochs: 100
+  batch_size: ${data_augmentation.augmentation.sampling.batch_size}
+  learning_rate: 1e-4
+  weight_decay: 1e-4
+
+  # Optimizer
+  optimizer: "adamw"
+
+  # Learning rate scheduler
+  scheduler:
+    type: "cosine"
+    warmup_epochs: 5
+    min_lr: 1e-6
+
+  # Loss configuration
+  loss:
+    focal_loss_weight: 2.0
+    bbox_loss_weight: 1.0
+    mask_loss_weight: 1.0
+
+  # Validation
+  val_interval: 1
+  save_interval: 10
+
+  # Early stopping
+  early_stopping:
+    enabled: true
+    patience: 15
+    metric: "mAP"
+
+# Logging and monitoring
+logging:
+  wandb:
+    enabled: false
+    project: "WildlifeMapper"
+    entity: null
+
+  tensorboard:
+    enabled: true
+    log_dir: "logs"
+
+  save_dir: "outputs"
+  experiment_name: "wildlife_detection_${now:%Y%m%d_%H%M%S}"
+
+# Hardware configuration
+hardware:
+  device: "cuda"
+  num_workers: 8
+  pin_memory: true
+  mixed_precision: true

@@ -1,0 +1,176 @@
+# Aerial imagery optimized augmentation configuration
+# Specialized for wildlife detection in aerial/drone imagery
+
+augmentation:
+  pipeline_type: "aerial_optimized"
+
+  # Image processing optimized for aerial imagery
+  image_size: [1024, 1024]
+  maintain_aspect_ratio: true
+
+  # Augmentation probabilities (aerial-focused)
+  strong_aug_prob: 0.7
+  geometric_aug_prob: 0.6
+  photometric_aug_prob: 0.7
+  weather_aug_prob: 0.5
+  aerial_specific_prob: 0.8
+
+  # Geometric augmentations (conservative rotation for aerial)
+  geometric:
+    horizontal_flip_prob: 0.5
+    vertical_flip_prob: 0.3
+    rotate90_prob: 0.4  # Less frequent for aerial imagery
+    rotation_limit: 10  # Small rotations to preserve aerial perspective
+    affine_prob: 0.3
+    affine_params:
+      scale: [0.85, 1.15]  # Conservative scaling
+      translate_percent: [-0.08, 0.08]
+      rotate: [-8, 8]
+      shear: [-3, 3]
+    perspective_prob: 0.3
+    perspective_scale: [0.02, 0.06]  # Subtle perspective changes
+
+  # Photometric augmentations (important for varying lighting)
+  photometric:
+    brightness_contrast_prob: 0.8
+    brightness_limit: 0.25
+    contrast_limit: 0.25
+    hue_saturation_prob: 0.6
+    hue_shift_limit: 8
+    sat_shift_limit: 18
+    val_shift_limit: 15
+    color_jitter_prob: 0.7
+    color_jitter_params:
+      brightness: 0.2
+      contrast: 0.2
+      saturation: 0.15
+      hue: 0.05
+
+  # Noise and blur (aerial imagery specific)
+  noise_blur:
+    gaussian_noise_prob: 0.3
+    noise_var_limit: [5.0, 35.0]
+    motion_blur_prob: 0.4  # Common in drone imagery
+    gaussian_blur_prob: 0.2
+    median_blur_prob: 0.1
+    blur_limit: 4
+
+  # Weather effects (critical for outdoor aerial imagery)
+  weather:
+    rain_prob: 0.2
+    rain_params:
+      slant_range: [-10, 10]
+      drop_length: 1
+      drop_width: 1
+      brightness_coefficient: 0.85
+    fog_prob: 0.15
+    fog_params:
+      fog_coef_range: [0.08, 0.25]
+      alpha_coef: 0.08
+    sun_flare_prob: 0.2  # Common in aerial imagery
+    sun_flare_params:
+      flare_roi: [0, 0, 1, 0.3]
+      num_flare_circles: [1, 2]
+
+    # Additional aerial weather effects
+    haze_prob: 0.15
+    shadow_prob: 0.25
+
+  # Aerial specific augmentations
+  aerial_specific:
+    # Simulate tree/vegetation occlusion
+    coarse_dropout_prob: 0.4
+    coarse_dropout_params:
+      max_holes: 8
+      max_hole_size: 40
+      min_holes: 2
+      min_hole_size: 12
+
+    # Simulate sensor artifacts
+    grid_dropout_prob: 0.2
+    grid_dropout_params:
+      ratio: 0.3
+      unit_size_range: [1, 8]
+
+    # Altitude simulation (scale changes)
+    altitude_variation_prob: 0.3
+    altitude_scale_range: [0.8, 1.3]
+
+  # Advanced effects
+  advanced_effects:
+    clahe_prob: 0.4  # Important for aerial imagery contrast
+    emboss_prob: 0.1
+    sharpen_prob: 0.3
+
+    # Aerial-specific effects
+    channel_shuffle_prob: 0.1
+    iso_noise_prob: 0.2
+
+  # Copy-paste augmentation (excellent for wildlife)
+  copy_paste:
+    enabled: true
+    paste_prob: 0.4
+    max_paste_objects: 4
+    scale_range: [0.6, 1.5]
+    overlap_threshold: 0.2
+    preserve_aspect_ratio: true
+    background_aware: true  # Consider background when pasting
+
+  # Mosaic and mixup (adapted for aerial)
+  advanced:
+    mosaic_prob: 0.4
+    mixup_prob: 0.15
+    mixup_alpha: 0.2
+    cutmix_prob: 0.2
+    cutmix_alpha: 1.0
+
+  # Class-aware sampling for wildlife imbalance
+  sampling:
+    strategy: "class_aware"
+    batch_size: 6  # Smaller batches for high-res aerial imagery
+    samples_per_class: 2
+    shuffle: true
+    balance_factor: 2.0
+
+# Normalization (consider aerial imagery statistics)
+normalization:
+  mean: [0.485, 0.456, 0.406]  # Can be adjusted based on aerial data statistics
+  std: [0.229, 0.224, 0.225]
+  adaptive_normalization: false
+
+# Aerial imagery specific settings
+aerial_settings:
+  # Multi-scale training
+  multi_scale:
+    enabled: true
+    scales: [800, 1024, 1280]
+    scale_change_freq: 10  # Every N batches
+
+  # Test-time augmentation
+  tta:
+    enabled: false
+    flips: [false, true]
+    rotations: [0, 90, 180, 270]
+    scales: [0.9, 1.0, 1.1]
+
+  # Object bank for copy-paste
+  object_bank:
+    max_objects: 500
+    update_frequency: 100  # Update bank every N samples
+    diversity_threshold: 0.3
+
+# Wildlife-specific optimizations
+wildlife_optimizations:
+  # Small object handling
+  small_object_enhancement: true
+  min_object_size: 16
+
+  # Multi-species handling
+  species_balancing: true
+  rare_species_boost: 2.5
+
+  # Seasonal adaptations
+  seasonal_augmentation:
+    enabled: false
+    seasons: ["spring", "summer", "autumn", "winter"]
+    season_specific_augs: true

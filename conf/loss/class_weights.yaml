@@ -5,7 +5,7 @@
 # Class weights to handle class imbalance
 # Weights are calculated using inverse frequency: max_count / class_count
 # Index corresponds to: [background, shoats, cattle, impala, zebra, wildebeest, buffalo, topi, other]
-class_weights: [0.1,1.2,1.9,1.16,6.37,12.12,1.0]
+class_weights: [1.2,1.9,1.16,6.37,12.12,1.0,0.1]
 
 # Class definition mapping (for reference)
 class_names:

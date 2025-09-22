@@ -26,7 +26,7 @@ giou_loss_coef: 2
 eos_coef: 0.1
 
 # Class weights for handling class imbalance
-class_weights: [0.1,1.2,1.9,1.16,6.37,12.12,1.0]
+class_weights: [1.2,1.9,1.16,6.37,12.12,1.0,0.1]
 
 # Evaluation
 eval: false
