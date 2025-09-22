@@ -1,5 +1,5 @@
 defaults:
-  - data_augmentation: standard
+  - data_augmentation: standard # options: basic, standard, advanced
   - _self_
 
 # Main training configuration for WildlifeMapper

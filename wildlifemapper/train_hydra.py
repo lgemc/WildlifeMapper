@@ -171,9 +171,27 @@ def main(cfg: DictConfig) -> None:
     hfc_adaptor_params = list(model_without_ddp.image_encoder.hfc_embed.parameters()) \
                         + list(model_without_ddp.image_encoder.patch_embed.parameters()) \
                         + list(model_without_ddp.image_encoder.hfc_attn.parameters())
+    # Apply loss weights from config if available
+    if hasattr(cfg, 'loss') and hasattr(cfg.loss, 'bbox_loss_weight'):
+        args.bbox_loss_coef = cfg.loss.bbox_loss_weight
+    if hasattr(cfg, 'loss') and hasattr(cfg.loss, 'mask_loss_weight'):
+        args.giou_loss_coef = cfg.loss.mask_loss_weight
+
     optimizer = torch.optim.AdamW([{"params" : mask_prompt_params},
                                    {"params": hfc_adaptor_params, "lr": 0.0001}], lr=cfg.lr, weight_decay=cfg.weight_decay)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, cfg.lr_drop)
+
+    # Use cosine scheduler if specified in config, otherwise use StepLR
+    if hasattr(cfg, 'scheduler') and getattr(cfg.scheduler, 'type', None) == 'cosine':
+        # Cosine annealing with warmup
+        from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
+        warmup_epochs = getattr(cfg.scheduler, 'warmup_epochs', 5)
+        min_lr = getattr(cfg.scheduler, 'min_lr', 1e-6)
+
+        warmup_scheduler = LinearLR(optimizer, start_factor=0.1, total_iters=warmup_epochs)
+        cosine_scheduler = CosineAnnealingLR(optimizer, T_max=cfg.num_epochs - warmup_epochs, eta_min=min_lr)
+        lr_scheduler = SequentialLR(optimizer, [warmup_scheduler, cosine_scheduler], milestones=[warmup_epochs])
+    else:
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, cfg.lr_drop)
 
     #Number mask decoder parameters:
     train_params_list = [n for n, p in model_without_ddp.named_parameters() if p.requires_grad]

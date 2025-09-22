@@ -17,3 +17,15 @@ distributed: false
 
 # Image processing configuration (shared across all models)
 img_size: 1024
+
+# Loss configuration (from train_config.yaml)
+loss:
+  focal_loss_weight: 2.0
+  bbox_loss_weight: 1.0
+  mask_loss_weight: 1.0
+
+# Scheduler configuration (from train_config.yaml)
+# scheduler:
+#  type: "cosine"
+#  warmup_epochs: 5
+#  min_lr: 1e-6
