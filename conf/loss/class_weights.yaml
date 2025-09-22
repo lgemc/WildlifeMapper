@@ -4,24 +4,25 @@
 
 # Class weights to handle class imbalance
 # Weights are calculated using inverse frequency: max_count / class_count
-# Index corresponds to: [species_1, species_2, species_3, species_4, species_5, species_6, background]
+# Index corresponds to: [category_0, category_1, category_2, category_3, category_4, category_5, background]
+# COCO category_ids 0-5 map to model classes 0-5, background is class 6
 class_weights: [1.2, 1.9, 1.16, 6.37, 12.12, 1.0, 0.1]
 
 # Class definition mapping (for reference)
 class_names:
-  1: "species_1"     # Class ID 1
-  2: "species_2"     # Class ID 2
-  3: "species_3"     # Class ID 3
-  4: "species_4"     # Class ID 4
-  5: "species_5"     # Class ID 5
-  6: "species_6"     # Class ID 6
-  # Background class is handled automatically in the loss function
+  0: "species_1"     # COCO category_id 0
+  1: "species_2"     # COCO category_id 1
+  2: "species_3"     # COCO category_id 2
+  3: "species_4"     # COCO category_id 3
+  4: "species_5"     # COCO category_id 4
+  5: "species_6"     # COCO category_id 5
+  # Background class 6 is handled automatically in the loss function
 
 # Weight rationale:
-# - species_1 (1.2): Lower weight for common species
-# - species_2 (1.9): Lower weight for more common species
-# - species_3 (1.16): Slightly above uniform for moderately common species
-# - species_4 (6.37): High weight due to lower frequency
-# - species_5 (12.12): Highest weight due to rarity in dataset
-# - species_6 (1.0): Uniform weight for balanced representation
+# - category_0/species_1 (1.2): Lower weight for common species
+# - category_1/species_2 (1.9): Lower weight for more common species
+# - category_2/species_3 (1.16): Slightly above uniform for moderately common species
+# - category_3/species_4 (6.37): High weight due to lower frequency
+# - category_4/species_5 (12.12): Highest weight due to rarity in dataset
+# - category_5/species_6 (1.0): Uniform weight for balanced representation
 # - background (0.1): Low weight to reduce false positive background predictions

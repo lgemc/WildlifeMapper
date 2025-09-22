@@ -26,7 +26,8 @@ giou_loss_coef: 2
 eos_coef: 0.1
 
 # Class weights for handling class imbalance
-# [species_1, species_2, species_3, species_4, species_5, species_6, background]
+# [category_0, category_1, category_2, category_3, category_4, category_5, background]
+# COCO category_ids 0-5 map to model classes 0-5, background is class 6
 class_weights: [1.2, 1.9, 1.16, 6.37, 12.12, 1.0, 0.1]
 
 # Evaluation
