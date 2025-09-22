@@ -96,3 +96,8 @@ The WildlifeMapper project was made possible with the help of many contributors 
 # Troubleshooting
 
 Images contains EXT metadata rotations, this can affect the bounding box coordinates. 
+
+
+# Run
+
+python wildlifemapper/train_hydra.py model=vit_b batch_size=8 use_wandb=True
