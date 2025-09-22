@@ -22,10 +22,71 @@ from .samplers import (
     WeightedClassSampler,
     MinorityOversamplingBatchSampler
 )
-from ..dataloader_coco import CocoDetection, ConvertCocoPolysToMask
+from torchvision.datasets import CocoDetection as BaseCocoDetection
 
 
-class EnhancedWildlifeDataset(CocoDetection):
+class ConvertCocoPolysToMask(object):
+    def __init__(self, return_masks=False):
+        self.return_masks = return_masks
+
+    def __call__(self, image, target):
+        w, h = image.size
+
+        image_id = target["image_id"]
+        image_id = torch.tensor([image_id], dtype=torch.int32)
+
+        anno = target["annotations"]
+
+        anno = [obj for obj in anno if 'iscrowd' not in obj or obj['iscrowd'] == 0]
+
+        boxes = [obj["bbox"] for obj in anno]
+        # guard against no boxes via resizing
+        boxes = torch.as_tensor(boxes, dtype=torch.float32).reshape(-1, 4)
+        boxes[:, 2:] += boxes[:, :2]
+        boxes[:, 0::2].clamp_(min=0, max=w)
+        boxes[:, 1::2].clamp_(min=0, max=h)
+
+        #center-point of the box for Bobby, yo!!
+        centre_points = torch.cat((boxes[:, ::2].mean(1, True), boxes[:, 1::2].mean(1, True)), 1)
+
+        classes = [obj["category_id"] for obj in anno]
+        classes = torch.tensor(classes, dtype=torch.int64)
+
+        keypoints = None
+        if anno and "keypoints" in anno[0]:
+            keypoints = [obj["keypoints"] for obj in anno]
+            keypoints = torch.as_tensor(keypoints, dtype=torch.float32)
+            num_keypoints = keypoints.shape[0]
+            if num_keypoints:
+                keypoints = keypoints.view(num_keypoints, -1, 3)
+
+        keep = (boxes[:, 3] > boxes[:, 1]) & (boxes[:, 2] > boxes[:, 0])
+        boxes = boxes[keep]
+        classes = classes[keep]
+        if keypoints is not None:
+            keypoints = keypoints[keep]
+
+        target = {}
+        target["boxes"] = boxes
+        target["labels"] = classes
+        target["center"] = centre_points
+        target["image_id"] = image_id
+        if keypoints is not None:
+            target["keypoints"] = keypoints
+
+        # for conversion to coco api
+        area = torch.tensor([obj["area"] for obj in anno])
+        iscrowd = torch.tensor([obj["iscrowd"] if "iscrowd" in obj else 0 for obj in anno])
+        target["area"] = area[keep]
+        target["iscrowd"] = iscrowd[keep]
+
+        target["orig_size"] = torch.as_tensor([int(h), int(w)])
+        target["size"] = torch.as_tensor([int(h), int(w)])
+
+        return image, target
+
+
+class EnhancedWildlifeDataset(BaseCocoDetection):
     """
     Enhanced dataset with advanced augmentation and class-aware sampling capabilities.
     """
@@ -47,7 +108,7 @@ class EnhancedWildlifeDataset(CocoDetection):
             return_masks: Whether to return segmentation masks
         """
         # Initialize parent class without transforms
-        super(CocoDetection, self).__init__(img_folder, ann_file)
+        super(BaseCocoDetection, self).__init__(img_folder, ann_file)
 
         self.cfg = cfg
         self.image_set = image_set
@@ -124,7 +185,7 @@ class EnhancedWildlifeDataset(CocoDetection):
             img, target = self._load_mosaic(idx)
         else:
             # Regular loading
-            img, target = super(CocoDetection, self).__getitem__(idx)
+            img, target = super(BaseCocoDetection, self).__getitem__(idx)
             image_id = self.ids[idx]
             target = {'image_id': image_id, 'annotations': target}
             img, target = self.prepare(img, target)
@@ -170,7 +231,7 @@ class EnhancedWildlifeDataset(CocoDetection):
         targets = []
 
         for idx in indices:
-            img, target = super(CocoDetection, self).__getitem__(idx)
+            img, target = super(BaseCocoDetection, self).__getitem__(idx)
             image_id = self.ids[idx]
             target = {'image_id': image_id, 'annotations': target}
             img, target = self.prepare(img, target)

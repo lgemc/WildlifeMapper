@@ -7,3 +7,4 @@ hydra-core
 omegaconf
 wandb
 albumentations
+pandas

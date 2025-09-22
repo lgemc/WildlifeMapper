@@ -21,7 +21,6 @@ from segment_anything.utils.augmentation_yolo import random_perspective
 from wildlifemapper.data.enhanced_dataloader import create_enhanced_dataloader
 
 
-
 class CocoDetection(torchvision.datasets.CocoDetection):
     def __init__(self, img_folder, ann_file, image_set, transforms, return_masks):
         super(CocoDetection, self).__init__(img_folder, ann_file)
