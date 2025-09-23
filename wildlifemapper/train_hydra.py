@@ -19,12 +19,13 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 
 from dataloader_coco import build_dataset
-from segment_anything import sam_model_registry
+from models.wildlife_mapper import build_model
+from segment_anything.modeling.matcher import build_matcher
+from segment_anything.build_sam import SetCriterion, PostProcess
 import torch.nn.functional as F
 import random
 from datetime import datetime
 import segment_anything.utils.misc as utils
-from segment_anything.network import MedSAM
 from inference import evaluate, get_coco_api_from_dataset
 
 #bowen
@@ -161,30 +162,105 @@ def main(cfg: DictConfig) -> None:
     random.seed(seed)
 
     #initialize network
-    sam_model, criterion, postprocessors = sam_model_registry[cfg.model_type](checkpoint=cfg.checkpoint, args=args)
-    medsam_model = MedSAM(
-        image_encoder=sam_model.image_encoder,
-        mask_decoder=sam_model.mask_decoder, #50 objects per image
-        prompt_encoder=sam_model.prompt_encoder,
-    ).to(device)
+    # Create backbone configuration
+    if hasattr(cfg, 'backbone') and hasattr(cfg.backbone, 'backbone_type'):
+        # Extract backbone type from the nested config
+        backbone_type = cfg.backbone.backbone_type
+        # Get the backbone-specific config
+        backbone_specific_config = dict(cfg.backbone.backbone_config) if hasattr(cfg.backbone, 'backbone_config') else {}
+
+        # Build the final config for get_backbone
+        backbone_config = backbone_specific_config.copy()
+        backbone_config['backbone_type'] = backbone_type
+
+        # Add checkpoint for ViT models
+        if backbone_type.startswith('vit_') and hasattr(cfg, 'checkpoint'):
+            backbone_config['checkpoint'] = cfg.checkpoint
+    else:
+        # Simple backbone specification or fallback
+        backbone_type = getattr(cfg, 'backbone', cfg.model_type)
+        backbone_config = {
+            'backbone_type': backbone_type,
+            'checkpoint': cfg.checkpoint if hasattr(cfg, 'checkpoint') else None,
+        }
+
+    # Get num_classes from config, default to 6 if not provided
+    num_classes = getattr(args, 'num_classes', 6)
+
+    # Build the model
+    model = build_model(backbone_config, num_classes=num_classes).to(device)
+
+    # Create criterion and postprocessors
+    matcher = build_matcher(args)
+
+    # Get focal loss parameters from args if provided
+    focal_loss_weight = getattr(args, 'focal_loss_weight', 0.0)
+    focal_loss_alpha = getattr(args, 'focal_loss_alpha', None)
+    focal_loss_gamma = getattr(args, 'focal_loss_gamma', 2.0)
+    use_focal_loss = focal_loss_weight > 0
+
+    # Use focal loss weight if provided, otherwise default classification weight
+    ce_weight = focal_loss_weight if use_focal_loss else 3
+    weight_dict = {'loss_ce': ce_weight, 'loss_bbox': args.bbox_loss_coef}
+    weight_dict['loss_giou'] = args.giou_loss_coef
+
+    losses = ['labels', 'boxes', 'cardinality']
+
+    # Get class weights from args if provided
+    class_weights = getattr(args, 'class_weights', None)
+
+    criterion = SetCriterion(num_classes, matcher=matcher, weight_dict=weight_dict,
+                             eos_coef=args.eos_coef, losses=losses, class_weights=class_weights,
+                             focal_loss_alpha=focal_loss_alpha, focal_loss_gamma=focal_loss_gamma,
+                             use_focal_loss=use_focal_loss)
+    criterion.to(device)
+
+    # Get confidence threshold from args, default to 0.1
+    confidence_threshold = getattr(args, 'confidence_threshold', 0.1)
+    postprocessors = {'bbox': PostProcess(confidence_threshold=confidence_threshold)}
 
     # bowen
-    model_without_ddp = medsam_model
+    model_without_ddp = model
     if cfg.distributed:
-        medsam_model = torch.nn.parallel.DistributedDataParallel(medsam_model, device_ids=[args.gpu], find_unused_parameters=True)
-        model_without_ddp = medsam_model.module
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], find_unused_parameters=True)
+        model_without_ddp = model.module
 
-    medsam_model.train()
+    model.train()
     criterion.train()
 
-    # img_mask_encdec_params = list(medsam_model.image_encoder.parameters()) +
-    #                         list(medsam_model.mask_decoder.parameters())
-    # bowen
-    mask_prompt_params =  list(model_without_ddp.mask_decoder.parameters()) \
-                        + list(model_without_ddp.prompt_encoder.parameters())
-    hfc_adaptor_params = list(model_without_ddp.image_encoder.hfc_embed.parameters()) \
-                        + list(model_without_ddp.image_encoder.patch_embed.parameters()) \
-                        + list(model_without_ddp.image_encoder.hfc_attn.parameters())
+    # Configure parameters based on backbone type
+    backbone_type = backbone_config['backbone_type']
+
+    if backbone_type.startswith('vit_'):
+        # SAM-style parameters for ViT backbones
+        mask_prompt_params = list(model_without_ddp.mask_decoder.parameters()) \
+                           + list(model_without_ddp.prompt_encoder.parameters())
+
+        # Check if backbone has SAM-specific components
+        if hasattr(model_without_ddp.backbone, 'hfc_embed'):
+            hfc_adaptor_params = list(model_without_ddp.backbone.hfc_embed.parameters()) \
+                               + list(model_without_ddp.backbone.patch_embed.parameters()) \
+                               + list(model_without_ddp.backbone.hfc_attn.parameters())
+        else:
+            # Use all backbone parameters if SAM-specific components not available
+            hfc_adaptor_params = list(model_without_ddp.backbone.parameters())
+    else:
+        # ResNet backbone parameters
+        mask_prompt_params = []
+        if hasattr(model_without_ddp, 'class_head'):
+            mask_prompt_params.extend(list(model_without_ddp.class_head.parameters()))
+        if hasattr(model_without_ddp, 'bbox_head'):
+            mask_prompt_params.extend(list(model_without_ddp.bbox_head.parameters()))
+        if hasattr(model_without_ddp, 'detection_transformer'):
+            mask_prompt_params.extend(list(model_without_ddp.detection_transformer.parameters()))
+        if hasattr(model_without_ddp, 'final_class_head'):
+            mask_prompt_params.extend(list(model_without_ddp.final_class_head.parameters()))
+        if hasattr(model_without_ddp, 'final_bbox_head'):
+            mask_prompt_params.extend(list(model_without_ddp.final_bbox_head.parameters()))
+        if hasattr(model_without_ddp, 'query_embed'):
+            mask_prompt_params.extend(list(model_without_ddp.query_embed.parameters()))
+
+        hfc_adaptor_params = list(model_without_ddp.backbone.parameters())
     # Apply loss weights from config if available
     if hasattr(cfg, 'loss') and hasattr(cfg.loss, 'bbox_loss_weight'):
         args.bbox_loss_coef = cfg.loss.bbox_loss_weight
@@ -254,7 +330,7 @@ def main(cfg: DictConfig) -> None:
             b,c,h,w = image.tensors.shape
             boxes_np = np.repeat(np.array([[0,0,h,w]]), cfg.batch_size, axis=0)
             image = image.to(device)
-            outputs = medsam_model(image, boxes_np)
+            outputs = model(image, boxes_np)
             loss_dict = criterion(outputs, targets)
             weight_dict = criterion.weight_dict
             losses = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
@@ -277,7 +353,7 @@ def main(cfg: DictConfig) -> None:
             losses.backward()
 
             if cfg.clip_max_norm > 0:
-                torch.nn.utils.clip_grad_norm_(medsam_model.parameters(), cfg.clip_max_norm)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.clip_max_norm)
             optimizer.step()
 
             metric_logger.update(loss=loss_value, **loss_dict_reduced_scaled, **loss_dict_reduced_unscaled)
@@ -299,7 +375,7 @@ def main(cfg: DictConfig) -> None:
 
         #Evaluation after each epoch
         test_stats, coco_evaluator = evaluate(
-            medsam_model, criterion, postprocessors, data_loader_val, base_ds, device, args)
+            model, criterion, postprocessors, data_loader_val, base_ds, device, args)
 
 
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},

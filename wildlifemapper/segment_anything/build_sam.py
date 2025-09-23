@@ -252,6 +252,11 @@ class SetCriterion(nn.Module):
 
 class PostProcess(nn.Module):
     """ This module converts the model's output into the format expected by the coco api"""
+
+    def __init__(self, confidence_threshold=0.1):
+        super().__init__()
+        self.confidence_threshold = confidence_threshold
+
     @torch.no_grad()
     def forward(self, outputs, target_sizes):
         """ Perform the computation
@@ -276,7 +281,16 @@ class PostProcess(nn.Module):
         scale_fct = torch.stack([img_w, img_h, img_w, img_h], dim=1)
         boxes = boxes * scale_fct[:, None, :]
 
-        results = [{'scores': s, 'labels': l, 'boxes': b} for s, l, b in zip(scores, labels, boxes)]
+        # Apply confidence threshold filtering
+        results = []
+        for s, l, b in zip(scores, labels, boxes):
+            # Filter by confidence threshold
+            keep = s >= self.confidence_threshold
+            results.append({
+                'scores': s[keep],
+                'labels': l[keep],
+                'boxes': b[keep]
+            })
 
         return results
 
@@ -369,5 +383,8 @@ def _build_sam(
                              focal_loss_alpha=focal_loss_alpha, focal_loss_gamma=focal_loss_gamma,
                              use_focal_loss=use_focal_loss)
     criterion.to(args.device)
-    postprocessors = {'bbox': PostProcess()}
+
+    # Get confidence threshold from args, default to 0.1
+    confidence_threshold = getattr(args, 'confidence_threshold', 0.1)
+    postprocessors = {'bbox': PostProcess(confidence_threshold=confidence_threshold)}
     return sam, criterion, postprocessors

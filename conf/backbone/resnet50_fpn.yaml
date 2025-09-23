@@ -1,0 +1,9 @@
+# ResNet-50 with FPN backbone configuration
+backbone_type: "resnet50_fpn"
+backbone_out_channels: 256
+
+backbone_config:
+  variant: "resnet50"
+  pretrained: true
+  out_channels: 256
+  fpn_levels: [1, 2, 3, 4]

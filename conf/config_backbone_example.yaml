@@ -1,0 +1,36 @@
+# Example configuration showing how to use different backbones
+defaults:
+  - model: vit_l
+  - backbone: resnet50_fpn  # Change this to switch backbones
+  - training: default
+  - dataset: default
+  - _self_
+
+# Main configuration
+task_name: "WildlifeMapper-${backbone.backbone_type}"
+work_dir: "./exp/backbone_${backbone.backbone_type}"
+output_dir: ""
+device: "cuda"
+seed: 42
+use_wandb: false
+use_amp: false
+resume: ""
+distributed: false
+
+# Image processing configuration (shared across all models)
+img_size: 1024
+
+# Loss configuration
+loss:
+  focal_loss_weight: 0.0
+  focal_loss_gamma: 2.0
+  bbox_loss_weight: 1.0
+  mask_loss_weight: 1.0
+
+# Available backbone options:
+# - vit_h: Vision Transformer Huge (best performance, largest model)
+# - vit_l: Vision Transformer Large (balanced performance/size)
+# - vit_b: Vision Transformer Base (fastest, smallest)
+# - resnet50_fpn: ResNet-50 with Feature Pyramid Network
+# - resnet101_fpn: ResNet-101 with Feature Pyramid Network
+# - resnet152_fpn: ResNet-152 with Feature Pyramid Network

@@ -123,10 +123,11 @@ class ImageEncoderViT(nn.Module):
         if self.pos_embed is not None:
             x = x + self.pos_embed
         
-        x_hfc_embed = self.hfc_embed(x_hfc)
-        #cross attention fron high frequencies to image features
-        x_hfc = self.hfc_attn(x_hfc_embed, x)
-        x = x_hfc + x
+        if x_hfc is not None:
+            x_hfc_embed = self.hfc_embed(x_hfc)
+            #cross attention fron high frequencies to image features
+            x_hfc = self.hfc_attn(x_hfc_embed, x)
+            x = x_hfc + x
 
         for blk in self.blocks:
             x = blk(x)

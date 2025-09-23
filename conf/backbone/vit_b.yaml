@@ -1,0 +1,9 @@
+# ViT-B (Base) SAM backbone configuration
+backbone_type: "vit_b"
+backbone_out_channels: 256
+
+backbone_config:
+  variant: "vit_b"
+  img_size: 1024
+  patch_size: 16
+  out_chans: 256

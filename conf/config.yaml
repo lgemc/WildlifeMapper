@@ -1,5 +1,6 @@
 defaults:
   - model: vit_l
+  - backbone: vit_l
   - training: default
   - dataset: default
   - _self_
